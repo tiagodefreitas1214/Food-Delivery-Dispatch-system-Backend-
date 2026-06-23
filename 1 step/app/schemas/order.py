@@ -38,7 +38,6 @@ class OrderResponse(BaseModel):
     The order representation returned to the client after creation.
     """
 
-    id:                 UUID
     restaurant_id:      UUID
     customer_id:        UUID
 
