@@ -8,7 +8,7 @@ It is NOT run as part of the normal pytest suite. Instead, run it manually
 as a standalone script:
 
 Usage:
-    export GOOGLE_MAPS_API_KEY="AIzaSyBKKzkH0rvuMvXBbMmBHX1vGRXojHwLKK8"
+    export GOOGLE_MAPS_API_KEY="YOUR_GOOGLE_MAPS_API_KEY"
     python tests/test_maps_client.py
 
 For normal unit test runs (pytest), use:
@@ -159,7 +159,7 @@ async def main() -> None:
 
     if not api_key:
         print("ERROR: GOOGLE_MAPS_API_KEY is not set.")
-        print("       export GOOGLE_MAPS_API_KEY='AIzaSyBKKzkH0rvuMvXBbMmBHX1vGRXojHwLKK8'")
+        print("       export GOOGLE_MAPS_API_KEY='YOUR_GOOGLE_MAPS_API_KEY'")
         sys.exit(1)
 
     print("\n" + "=" * 56)
