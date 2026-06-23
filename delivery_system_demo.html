@@ -1,0 +1,266 @@
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<h2 class="sr-only">Demo interactivo de sistema de delivery en Berlin — haz click en el mapa para establecer un destino y simular un pedido</h2>
+
+<div id="app" style="display:flex;height:580px;border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);overflow:hidden;">
+
+  <div id="sidebar" style="width:300px;min-width:300px;background:var(--color-background-primary);border-right:0.5px solid var(--color-border-tertiary);display:flex;flex-direction:column;overflow-y:auto;">
+
+    <div style="padding:14px 16px;border-bottom:0.5px solid var(--color-border-tertiary);">
+      <p style="font-size:11px;color:var(--color-text-tertiary);margin:0 0 3px;letter-spacing:0.5px;">SISTEMA DE DELIVERY</p>
+      <p id="state-label" style="font-size:14px;font-weight:500;margin:0;color:var(--color-text-primary);">Establece un destino</p>
+    </div>
+
+    <div style="padding:14px 16px;border-bottom:0.5px solid var(--color-border-tertiary);">
+      <p style="font-size:11px;color:var(--color-text-tertiary);margin:0 0 10px;letter-spacing:0.5px;">RESTAURANTE</p>
+      <div style="display:flex;gap:10px;align-items:center;">
+        <div style="width:34px;height:34px;border-radius:var(--border-radius-md);background:#FAECE7;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:500;color:#993C1D;flex-shrink:0;">RES</div>
+        <div>
+          <p style="font-size:13px;font-weight:500;margin:0;color:var(--color-text-primary);">Burgermeister Mitte</p>
+          <p style="font-size:11px;color:var(--color-text-secondary);margin:2px 0 0;">Schloßstr. 160, Mitte · Berlin</p>
+        </div>
+      </div>
+    </div>
+
+    <div style="padding:14px 16px;border-bottom:0.5px solid var(--color-border-tertiary);">
+      <p style="font-size:11px;color:var(--color-text-tertiary);margin:0 0 10px;letter-spacing:0.5px;">LEYENDA</p>
+      <div style="display:flex;flex-direction:column;gap:6px;">
+        <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--color-text-secondary);">
+          <div style="width:14px;height:14px;background:#FAECE7;border-radius:50%;border:2px solid #D85A30;flex-shrink:0;"></div>Restaurante
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--color-text-secondary);">
+          <div style="width:14px;height:14px;background:#E6F1FB;border-radius:50%;border:2px solid #185FA5;flex-shrink:0;"></div>Delivery disponible
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--color-text-secondary);">
+          <div style="width:14px;height:14px;background:#C0DD97;border-radius:50%;border:2px solid #3B6D11;flex-shrink:0;"></div>Delivery notificado
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--color-text-secondary);">
+          <div style="width:12px;height:4px;background:#185FA5;border-radius:2px;flex-shrink:0;"></div>Ruta al restaurante
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--color-text-secondary);">
+          <div style="width:12px;height:4px;background:#D85A30;border-radius:2px;flex-shrink:0;"></div>Ruta al destino
+        </div>
+      </div>
+    </div>
+
+    <div id="controls" style="padding:14px 16px;flex:1;">
+
+      <div id="s-idle">
+        <p style="font-size:13px;color:var(--color-text-secondary);margin:0 0 12px;line-height:1.6;">Haz click en el mapa para establecer el destino del pedido.</p>
+        <div id="dest-display" style="display:none;background:var(--color-background-secondary);border-radius:var(--border-radius-md);padding:10px 12px;margin-bottom:12px;">
+          <p style="font-size:11px;color:var(--color-text-tertiary);margin:0 0 3px;">Destino seleccionado</p>
+          <p id="dest-coords" style="font-size:12px;font-family:var(--font-mono);color:var(--color-text-primary);margin:0;"></p>
+        </div>
+        <button id="order-btn" onclick="placeOrder()" disabled style="width:100%;padding:10px;font-size:13px;font-weight:500;background:#1D9E75;color:#E1F5EE;border:none;border-radius:var(--border-radius-md);cursor:pointer;opacity:0.5;">
+          Hacer pedido
+        </button>
+      </div>
+
+      <div id="s-ordering" style="display:none;">
+        <p style="font-size:12px;color:var(--color-text-secondary);margin:0 0 10px;">Deliveries disponibles en radio de 2.5 km:</p>
+        <div id="delivery-list"></div>
+      </div>
+
+      <div id="s-routing" style="display:none;text-align:center;padding:32px 0;">
+        <div style="width:22px;height:22px;border:2px solid var(--color-border-tertiary);border-top-color:#1D9E75;border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto 12px;"></div>
+        <p style="font-size:13px;color:var(--color-text-secondary);margin:0;">Calculando ruta via OSRM...</p>
+      </div>
+
+      <div id="s-done" style="display:none;">
+        <p style="font-size:11px;color:var(--color-text-tertiary);margin:0 0 10px;letter-spacing:0.5px;">RESUMEN DE RUTA</p>
+
+        <div style="background:var(--color-background-secondary);border-radius:var(--border-radius-md);padding:12px;margin-bottom:8px;display:flex;gap:10px;align-items:center;">
+          <div style="width:4px;height:44px;background:#185FA5;border-radius:2px;flex-shrink:0;"></div>
+          <div>
+            <p style="font-size:11px;color:var(--color-text-secondary);margin:0;">Delivery — Restaurante</p>
+            <p id="leg1-time" style="font-size:15px;font-weight:500;margin:3px 0 2px;font-family:var(--font-mono);color:var(--color-text-primary);"></p>
+            <p id="leg1-dist" style="font-size:11px;color:var(--color-text-secondary);margin:0;font-family:var(--font-mono);"></p>
+          </div>
+        </div>
+
+        <div style="background:var(--color-background-secondary);border-radius:var(--border-radius-md);padding:12px;margin-bottom:10px;display:flex;gap:10px;align-items:center;">
+          <div style="width:4px;height:44px;background:#D85A30;border-radius:2px;flex-shrink:0;"></div>
+          <div>
+            <p style="font-size:11px;color:var(--color-text-secondary);margin:0;">Restaurante — Destino</p>
+            <p id="leg2-time" style="font-size:15px;font-weight:500;margin:3px 0 2px;font-family:var(--font-mono);color:var(--color-text-primary);"></p>
+            <p id="leg2-dist" style="font-size:11px;color:var(--color-text-secondary);margin:0;font-family:var(--font-mono);"></p>
+          </div>
+        </div>
+
+        <div style="background:#E1F5EE;border-radius:var(--border-radius-md);padding:14px;text-align:center;">
+          <p style="font-size:11px;color:#0F6E56;margin:0 0 4px;letter-spacing:0.5px;">TIEMPO TOTAL ESTIMADO</p>
+          <p id="total-time" style="font-size:26px;font-weight:500;color:#085041;margin:0;font-family:var(--font-mono);"></p>
+          <p id="total-dist" style="font-size:11px;color:#0F6E56;margin:4px 0 0;font-family:var(--font-mono);"></p>
+        </div>
+      </div>
+
+    </div>
+
+    <button onclick="resetApp()" style="margin:10px 14px 14px;padding:8px;font-size:12px;background:transparent;border:0.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);cursor:pointer;color:var(--color-text-secondary);">
+      Reiniciar demo
+    </button>
+
+  </div>
+
+  <div id="map" style="flex:1;"></div>
+</div>
+
+<style>
+@keyframes spin{to{transform:rotate(360deg);}}
+@keyframes fadein{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:translateY(0);}}
+.card-anim{animation:fadein 0.25s ease forwards;}
+.leaflet-control-zoom a{background:var(--color-background-primary)!important;color:var(--color-text-primary)!important;border-color:var(--color-border-tertiary)!important;}
+</style>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+const REST={name:'Burgermeister Mitte',pos:[52.5163,13.4077]};
+const DEVS=[
+  {id:'d1',name:'Marco R.',pos:[52.5218,13.3948],rating:4.8,trips:234},
+  {id:'d2',name:'Julia K.',pos:[52.5105,13.4138],rating:4.9,trips:512},
+  {id:'d3',name:'Ahmed M.',pos:[52.5048,13.4255],rating:4.7,trips:178},
+  {id:'d4',name:'Lisa W.',pos:[52.5295,13.4182],rating:4.6,trips:89},
+];
+
+let map,destMarker,destPos,routeLayers=[],devMarkers={},appState='idle';
+
+function hkm([a,b],[c,d]){
+  const R=6371,f=Math.PI/180,dLat=(c-a)*f,dLng=(d-b)*f;
+  const x=Math.sin(dLat/2)**2+Math.cos(a*f)*Math.cos(c*f)*Math.sin(dLng/2)**2;
+  return R*2*Math.atan2(Math.sqrt(x),Math.sqrt(1-x));
+}
+function fmt(s){const m=Math.round(s/60);return m<60?`${m} min`:`${Math.floor(m/60)}h ${m%60}min`;}
+function fmd(m){return m<1000?`${Math.round(m)} m`:`${(m/1000).toFixed(1)} km`;}
+
+function mkIcon(lbl,bg,fg,brd,sz=32){
+  return L.divIcon({className:'',
+    html:`<div style="width:${sz}px;height:${sz}px;background:${bg};border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:500;color:${fg};border:2px solid ${brd};box-sizing:border-box;white-space:nowrap;">${lbl}</div>`,
+    iconAnchor:[sz/2,sz/2]});
+}
+function mkDest(){
+  return L.divIcon({className:'',
+    html:`<div style="width:14px;height:14px;background:#7F77DD;border-radius:50%;border:3px solid white;"></div>`,
+    iconAnchor:[7,7]});
+}
+
+function setState(s){
+  appState=s;
+  ['idle','ordering','routing','done'].forEach(x=>{
+    const el=document.getElementById('s-'+x);
+    if(el)el.style.display=x===s?'block':'none';
+  });
+  const lbl={idle:'Establece un destino',ordering:'Seleccionar delivery',routing:'Calculando...',done:'Ruta calculada'};
+  document.getElementById('state-label').textContent=lbl[s]||s;
+}
+
+async function fetchRoute(a,b){
+  const r=await fetch(`https://router.project-osrm.org/route/v1/driving/${a[1]},${a[0]};${b[1]},${b[0]}?overview=full&geometries=geojson`);
+  const d=await r.json();
+  if(d.code!=='Ok')throw new Error();
+  return{geom:d.routes[0].geometry,dur:d.routes[0].duration,dist:d.routes[0].distance};
+}
+function fallback(a,b){const k=hkm(a,b);return{geom:null,dur:(k/25)*3600,dist:k*1000};}
+
+function draw(geom,color,a,b){
+  let l;
+  if(geom)l=L.geoJSON(geom,{style:{color,weight:4,opacity:0.9,lineCap:'round',lineJoin:'round'}}).addTo(map);
+  else l=L.polyline([a,b],{color,weight:4,opacity:0.8,dashArray:'8 5'}).addTo(map);
+  routeLayers.push(l);
+}
+function clearAll(){routeLayers.forEach(l=>map.removeLayer(l));routeLayers=[];}
+
+function initMap(){
+  map=L.map('map').setView([52.519,13.405],13);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
+    {attribution:'© CARTO',maxZoom:19,subdomains:'abcd'}).addTo(map);
+
+  L.marker(REST.pos,{icon:mkIcon('REST','#FAECE7','#993C1D','#D85A30',38)}).addTo(map)
+    .bindPopup(`<b>${REST.name}</b>`);
+
+  DEVS.forEach((d,i)=>{
+    const m=L.marker(d.pos,{icon:mkIcon(`D${i+1}`,'#E6F1FB','#0C447C','#185FA5',32)}).addTo(map)
+      .bindPopup(`<b>${d.name}</b><br>${hkm(d.pos,REST.pos).toFixed(1)} km del restaurante`);
+    devMarkers[d.id]=m;
+  });
+
+  map.on('click',e=>{
+    if(appState!=='idle')return;
+    destPos=[e.latlng.lat,e.latlng.lng];
+    if(destMarker)map.removeLayer(destMarker);
+    destMarker=L.marker(destPos,{icon:mkDest()}).addTo(map).bindPopup('Destino del pedido');
+    document.getElementById('dest-display').style.display='block';
+    document.getElementById('dest-coords').textContent=`${destPos[0].toFixed(4)}, ${destPos[1].toFixed(4)}`;
+    const btn=document.getElementById('order-btn');
+    btn.disabled=false;btn.style.opacity='1';
+  });
+}
+
+function placeOrder(){
+  if(!destPos)return;
+  setState('ordering');
+  const R=2.5;
+  const nearby=DEVS.map(d=>({...d,dk:hkm(d.pos,REST.pos)})).filter(d=>d.dk<=R).sort((a,b)=>a.dk-b.dk);
+
+  const circle=L.circle(REST.pos,{radius:R*1000,color:'#639922',fillColor:'#C0DD97',fillOpacity:0.08,weight:1,dashArray:'6 4'}).addTo(map);
+  routeLayers.push(circle);
+
+  nearby.forEach(d=>{
+    const i=DEVS.findIndex(x=>x.id===d.id);
+    devMarkers[d.id].setIcon(mkIcon(`D${i+1}`,'#C0DD97','#27500A','#3B6D11',34));
+  });
+
+  const list=document.getElementById('delivery-list');
+  list.innerHTML='';
+  if(!nearby.length){list.innerHTML=`<p style="font-size:13px;color:var(--color-text-secondary);">Sin deliveries en ${R} km.</p>`;return;}
+  nearby.forEach((d,idx)=>{
+    const i=DEVS.findIndex(x=>x.id===d.id);
+    const div=document.createElement('div');
+    div.className='card-anim';
+    div.style.cssText=`background:var(--color-background-secondary);border-radius:var(--border-radius-md);padding:11px;margin-bottom:8px;display:flex;align-items:center;gap:10px;opacity:0;animation-delay:${idx*0.08}s;`;
+    div.innerHTML=`<div style="width:32px;height:32px;background:#B5D4F4;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:500;color:#0C447C;flex-shrink:0;">D${i+1}</div><div style="flex:1;min-width:0;"><p style="font-size:13px;font-weight:500;margin:0;color:var(--color-text-primary);">${d.name}</p><p style="font-size:11px;color:var(--color-text-secondary);margin:2px 0 0;font-family:var(--font-mono);">${d.rating}/5 · ${d.trips} viajes · ${d.dk.toFixed(1)} km</p></div><button onclick="acceptDev('${d.id}')" style="background:#1D9E75;color:#E1F5EE;border:none;border-radius:var(--border-radius-md);padding:6px 11px;font-size:12px;font-weight:500;cursor:pointer;">Aceptar</button>`;
+    list.appendChild(div);
+  });
+}
+
+async function acceptDev(id){
+  const dev=DEVS.find(d=>d.id===id);
+  const devIdx=DEVS.findIndex(d=>d.id===id);
+  setState('routing');
+  DEVS.forEach((d,i)=>devMarkers[d.id].setIcon(mkIcon(`D${i+1}`,'#E6F1FB','#0C447C','#185FA5',32)));
+  devMarkers[id].setIcon(mkIcon(`D${devIdx+1}`,'#185FA5','#E6F1FB','#0C447C',38));
+  clearAll();
+
+  try{
+    const [r1s,r2s]=await Promise.allSettled([fetchRoute(dev.pos,REST.pos),fetchRoute(REST.pos,destPos)]);
+    const r1=r1s.status==='fulfilled'?r1s.value:fallback(dev.pos,REST.pos);
+    const r2=r2s.status==='fulfilled'?r2s.value:fallback(REST.pos,destPos);
+
+    draw(r1.geom,'#185FA5',dev.pos,REST.pos);
+    draw(r2.geom,'#D85A30',REST.pos,destPos);
+
+    document.getElementById('leg1-time').textContent=fmt(r1.dur);
+    document.getElementById('leg1-dist').textContent=fmd(r1.dist);
+    document.getElementById('leg2-time').textContent=fmt(r2.dur);
+    document.getElementById('leg2-dist').textContent=fmd(r2.dist);
+    document.getElementById('total-time').textContent=fmt(r1.dur+r2.dur);
+    document.getElementById('total-dist').textContent=`${fmd(r1.dist+r2.dist)} en total`;
+    setState('done');
+    map.fitBounds(L.latLngBounds([dev.pos,REST.pos,destPos]),{padding:[40,40]});
+  }catch(e){setState('idle');}
+}
+
+function resetApp(){
+  clearAll();
+  if(destMarker){map.removeLayer(destMarker);destMarker=null;}
+  destPos=null;
+  DEVS.forEach((d,i)=>devMarkers[d.id].setIcon(mkIcon(`D${i+1}`,'#E6F1FB','#0C447C','#185FA5',32)));
+  document.getElementById('dest-display').style.display='none';
+  const btn=document.getElementById('order-btn');
+  btn.disabled=true;btn.style.opacity='0.5';
+  document.getElementById('delivery-list').innerHTML='';
+  setState('idle');
+  map.setView([52.519,13.405],13);
+}
+
+initMap();
+</script>
